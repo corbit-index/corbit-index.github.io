@@ -24,8 +24,3 @@ url: "https://corbit-index.github.io" # the base hostname & protocol for your si
 
 # Build settings
 theme: minima
-plugins:
-  - jekyll-feed
-
-header_pages:
-  - index.md
