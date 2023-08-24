@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-K40G3F9FZ8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-K40G3F9FZ8');
+    </script>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>CorBit: Leveraging Correlations for Compressing Bitmap Indexes</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/Highlight-Clean.css">
+
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+    <script async data-id="101423789" src="//static.getclicky.com/js"></script>
+
+    <meta property="og:title" content="CorBit: Leveraging Correlations for Compressing Bitmap Indexes">
+    <meta property="og:description" content="We introduce CorBit, a technique that leverages column correlations to compress bitmap indexes on a given table. The high-level idea is to only store the bits that need to be flipped (the diff) when encoding the bitmaps of a column that correlates with another column that already has a bitmap index in place. CorBit automatically determines which columns to store an index for and which column bitmaps to diff-encode, minimizing the overall size of the index.">
+    <meta property="og:url" content="https://corbit-index.github.io/">
+    <meta property="og:image" content="https://corbit-index.github.io/assets/img/corbit.png" />
+
+    <meta name="twitter:title" content="CorBit: Leveraging Correlations for Compressing Bitmap Indexes">
+    <meta name="twitter:description" content="We introduce CorBit, a technique that leverages column correlations to compress bitmap indexes on a given table. The high-level idea is to only store the bits that need to be flipped (the diff) when encoding the bitmaps of a column that correlates with another column that already has a bitmap index in place. CorBit automatically determines which columns to store an index for and which column bitmaps to diff-encode, minimizing the overall size of the index.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://corbit-index.github.io/">
+    <meta name="twitter:image" content="https://corbit-index.github.io/assets/img/corbit.png" />
+<!--    <meta name="twitter:site" content="@">-->
+
+</head>
+
+<body>
+    <div class="highlight-clean" style="padding-bottom: 10px;">
+        <div class="container">
+            <h1 class="text-center">CorBit: Leveraging Correlations for <br>Compressing Bitmap Indexes</h1>
+        </div>
+        <div class="container" style="max-width: 720px;">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5 class="text-center" style="margin: 5px">Xi Lyu</h5>
+                    <h6 class="text-center">Technical University of Munich</h6>
+                </div>
+                <div class="col-md-4">
+                    <h5 class="text-center" style="margin: 5px;">Andreas Kipf</h5>
+                    <h6 class="text-center">Amazon Web Services</h6>
+                </div>
+                <div class="col-md-4">
+                    <h5 class="text-center" style="margin: 5px;">Pascal Pfeil</h5>
+                    <h6 class="text-center">Amazon Web Services</h6>
+                </div>
+                <div class="col-md-4">
+                    <h5 class="text-center" style="margin: 5px;">Dominik Horn</h5>
+                    <h6 class="text-center">Amazon Web Services</h6>
+                </div>
+                <div class="col-md-4">
+                    <h5 class="text-center" style="margin: 5px">Jana Giceva</h5>
+                    <h6 class="text-center">Technical University of Munich</h6>
+                </div>
+                <div class="col-md-4">
+                    <h5 class="text-center" style="margin: 5px">Tim Kraska</h5>
+                    <h6 class="text-center">Massachusetts Institute of Technology</h6>
+                </div>
+            </div>
+        </div>
+        <div class="buttons" style="margin: 8px;">
+            <a class="btn btn-primary" role="button" target="_blank" href="https://sites.google.com/view/aidb2023/home/accepted-papers#:~:text=CorBit%3A%20Leveraging%20Correlations%20for%20Compressing%20Bitmap%20Indexes">Extended Abstracts</a>
+            <a class="btn btn-light" role="button" title="Coming soon!" onclick="alert('Coming soon!');">GitHub</a>
+        </div>
+    </div>
+
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Abstract</h2>
+                <p>
+                    A bitmap index is a secondary index structure that supports equality
+                    and range predicates. In its simplest form, a bitmap index stores
+                    one bitmap per unique column value indicating qualifying tuples.
+                    To use such indexes in large-scale data warehousing, they need to
+                    be space efficient. Existing schemes such as Roaring can compress
+                    individual bitmaps but do not consider cross-column compression.
+                </p>
+                <div class="text-center">
+                    <img class="img-fluid" style="max-width: 80%;" src="assets/img/basic-idea.svg">
+                    <em class="text-center" style="display: block;">An example of CorBit Index on a user info table including 3 categorical attributes</em>
+                </div>
+                <p>
+                    In this paper, we introduce <em>CorBit</em>, a technique that leverages column
+                    correlations to compress bitmap indexes on a given table. The
+                    high-level idea is to only store the bits that need to be flipped (the
+                    diff) when encoding the bitmaps of a column that correlates with
+                    another column that already has a bitmap index in place. CorBit
+                    automatically determines which columns to store an index for and
+                    which column bitmaps to diff-encode, minimizing the overall size of
+                    the index. Compared to Roaring, CorBit consumes 9.1% less space
+                    on the DMV dataset while incurring a 12.6% runtime overhead.
+                </p>
+            </div>
+        </div>
+    </div>
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Basic Idea</h2>
+                <p>
+                    If two columns in a table are highly correlated, we only
+                    materialize the bitmap index of one column. For each unique value
+                    in the other column, we find the closest bitmap in the materialized
+                    column w.r.t. Hamming distance and only store the differences
+                    in its bitmap. If the Hamming distance is small, the diff-encoded
+                    bitmaps will be sparse, allowing various bitmap compression methods
+                    such as Roaring or run-length encoding to save more space.
+                </p>
+                <div class="text-center">
+                    <em class="text-center" style="display: block;">An example of Contingency table for Language and Country</em>
+                    <img class="img-fluid" src="assets/img/contingency-table.svg">
+                </div>
+
+                <p>
+                    For example, the two columns Language and Country in a user information
+                    table are usually highly correlated, as shown above.
+                    Specifically, the skewed frequency counts in the
+                    table indicate that if we would materialize the bitmaps of the Country
+                    column, using diff-encoding for the Language column would
+                    save space. E.g., for the value German in Language we choose the
+                    Germany bitmap as reference and store the XOR of the two
+                    bitmaps.
+                </p>
+                <div class="text-center">
+                    <img class="img-fluid" style="max-width: 40%;" src="assets/img/german-germany-popcnt.svg">
+                    <em class="text-center" style="display: block;">The population counts of some bitmaps</em>
+                </div>
+            </div>
+        </div>
+    </div>
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Measuring Correlation</h2>
+                <p>
+                    To decide which column pairs to consider
+                    for our cross-column compression scheme, a naïve approach would be to
+                    consider all pairs of columns and calculate actual sizes of encoded indexes, as shown below.
+                </p>
+                <div class="text-center">
+                    <img class="img-fluid" src="assets/img/native-approach.svg">
+                    <em class="text-center" style="display: block;">The naïve approach</em>
+                </div>
+
+
+                <p>
+                    Unfortunately, the naïve approach is computationally expensive.
+                    A better method would be to find a suitable and efficient
+                    metric that can help us identify potentially correlated column pairs.
+                    </p>
+                <div class="text-center">
+                    <img class="img-fluid" style="max-width: 45%;" src="assets/img/using-corr-metric.svg">
+                    <em class="text-center" style="display: block;">Correlations indicated by an effective metric</em>
+                </div>
+
+                <p>
+                    Therefore, we have evaluated a number of metrics that measure the
+                    correlation of categorical features, and we also designed our
+                    own metric called Total Reduced Popcnt based on the contingency
+                    table. It directly measures how much the total population count of the
+                    diff-encoded bitmaps can be reduced.
+                    This metric is defined as
+
+                    $$\eta_{A,B} = \sum_{a \in U_A} \max \{0, \max_{b \in U_B} \{2 |\sigma_{A=a \land B=b} R| - |\sigma_{B=b} R|\} \}$$
+
+                    where $A$ and $B$ are two columns in relation $R$. This metric is highly positively related to the saved space. This approach only requires traversing the dataset once and then utilizing contingency tables for subsequent calculations.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Compressing a Bitmap Index</h2>
+                <p>
+                    As we have identified an appropriate correlation metric, namely Total Reduced Popcnt, which exhibits a strong positive correlation with the saved space. What we need to annotate here is the Total Popcnt, the sum of the population counts of the bitmaps of the column, which we can calculate easily.
+                </p>
+                <div class="text-center">
+                    <img class="img-fluid" src="assets/img/our-approach.svg">
+                    <em class="text-center" style="display: block;">Our approach using Total Reduced Popcnt</em>
+                </div>
+                <p>
+                    Once we obtain an annotated complete digraph, we can employ a greedy algorithm to obtain a near-optimal solution. This involves greedily selecting the best edge and adding it to the dependency graph and continue the process as long as it results in an overall reduction in space consumption.
+                </p>
+                <div class="text-center">
+                    <img class="img-fluid" src="assets/img/our-index.svg">
+                    <em class="text-center" style="display: block;">An example of CorBit Index</em>
+                </div>
+                <p>
+                    Finally, we compute the original bitmaps and XOR bitmaps that need to be stored based on the obtained dependency graph. Since we used Total Reduced Popcnt as a correlation metric, the intermediate results allow us to select, for each bitmap in a column, the closest bitmap in its referenced column. This is also one of the advantages of employing Total Reduced Popcnt.
+                </p>
+            </div>
+        </div>
+    </div>
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Balancing between Space-saving and Performance Overhead</h2>
+                <div class="text-center">
+                    <img class="img-fluid" style="max-width: 80%;" src="assets/img/param-p.svg">
+                </div>
+                <p>
+                    Since the XOR operation also takes time, for performance considerations, we choose to store a XOR bitmap only if it saves $p$ of the space compared to the encoded original bitmap. By adjusting the parameter $p$, users can strike a balance between performance and space. To save more space, a smaller value of $p$ can be chosen, such as 50%.
+                    On the other hand, if performance is of greater concern, a larger value of $p$, such as 90%, can be selected.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Results</h2>
+                <p>We evaluate on multiple real-world datasets with various settings. Compared to Roaring, CorBit consumes 9.1% less space on the DMV dataset while incurring a 12.6% runtime overhead.</p>
+                <div class="text-center">
+                    <img class="img-fluid" style="max-width: 80%;" src="assets/img/result-dmv.png">
+                    <em class="text-center" style="display: block;">Size and lookup latency of different CorBit configurations compared to Roaring <br>on DMV (12,300,116 rows)</em>
+                </div>
+
+                <p>
+                    The table below shows the top 5 columns with the highest
+                    space savings in the DMV dataset. We observe that the Scofflaw
+                    Indicator references the Revocation Indicator, and Zip and County
+                    reference City. These relationships are reasonable based on the
+                    meanings of these columns, and CorBit has successfully discovered
+                    the correlations, leading to space savings.
+                </p>
+                <div class="text-center">
+                    <em class="text-center" style="display: block;">Size per column under Roaring and CorBit (𝑝 = 80%) (top 5 columns)</em>
+                    <img class="img-fluid" src="assets/img/result-size-per-col.png">
+                </div>
+
+                <p>Refer to the paper for more results.</p>
+
+            </div>
+        </div>
+    </div>
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="row">
+            <div class="col-md-12">
+                <h2>Citation</h2>
+                <code>@inproceedings{corbit,<br>
+                    &nbsp; title={CorBit: Leveraging Correlations for Compressing Bitmap Indexes},<br>
+                    &nbsp; author={Xi Lyu and Andreas Kipf and Pascal Pfeil and Dominik Horn and Jana Giceva and Tim Kraska},<br>
+                    &nbsp; year={2023},<br>
+                    &nbsp; booktitle={Proceedings of the VLDB Endowment},<br>
+                    &nbsp; booksubtitle={5th International Workshop on Applied AI for Database Systems and Applications}<br>}<br></code>
+            </div>
+        </div>
+    </div>
+    <hr style="max-width: 720px;">
+    <div class="container" style="max-width: 720px;">
+        <div class="col-md-12">
+            <em>Page style file credited to <a href="https://parasj.github.io/contracode/">ContraCode</a> and <a href="https://var-skip.github.io/">VarSkip</a>.</em>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
